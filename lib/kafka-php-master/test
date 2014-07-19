@@ -1,0 +1,58 @@
+#!/usr/bin/php
+<?php
+/*
+ *. Usage: ./test [system_test_host]
+ *.
+ */
+ 
+
+error_reporting(E_ALL | E_STRICT);
+
+set_error_handler(function($errno,$errstr,$file,$line) {
+    throw new ErrorException($errstr,$errno,0,$file,$line);
+});
+
+class SkippedException extends RuntimeException {}
+
+function dump($data) {
+    for($i=0; $i<strlen($data); $i++) {
+        echo 'chr('.ord($data[$i]).').';
+    }
+}
+
+
+function runtests(array $files) {
+	foreach($files as $testCase)
+	{
+	    $testName = substr($testCase,strlen(__DIR__)+1);
+	    echo "\033[1;35m{$testName}\033[0m";
+	    try {
+		  require $testCase;
+		  echo " - SUCCESS";
+		} catch ( SkippedException $se) {
+		    echo " -\033[1;1;33m SKIPPED " . $se->getMessage() . "\033[0m";
+		}
+		echo "\n";
+	}
+}
+
+try {
+
+	echo "\nKafka-PHP Unit Tests\n====================\n";
+	runtests(array_merge(glob(__DIR__. "/tests/Kafka/*.php"), glob(__DIR__. "/tests/Kafka/*/*.php")));
+	
+	$testHost = isset($_SERVER['argv'][1]) ? $_SERVER['argv'][1] : 'localhost';
+	echo "\nKafka-PHP System Tests ($testHost) \n==========================================\n";
+	$kafka = new \Kafka\Kafka($testHost, 9092, 3, 0.7);
+	$consumer = \Kafka\ConsumerConnector::Create("{$testHost}:2181", "kafka-php-system-test");
+	runtests(array_merge(glob(__DIR__. "/tests/System/*.php")));
+
+	echo "\n\033[1;32mSUCCESS\033[0m";
+} catch(Exception $e) {
+	echo "\033[1;31m";
+	echo " - FAILURE: " . $e->getMessage() . "\n";
+	echo $e->getTraceAsString ();
+	echo "\033[0m";
+}
+
+echo "\n\n";

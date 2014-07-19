@@ -1,0 +1,62 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ *. Producer
+ *.
+ *. Simple producer script that will connect directly to Kafka broker,
+ *. skipping the Zookeper layer. It will automatically produce some
+ *. messaged, you don't need to insert any.
+ *.
+ *. Usage: ./scripts/simple/producer -b {broker} -t {topic}
+ *.
+ *.     -b  Broker, the Kafka broker where we want to connect
+ *.     -t  Topic, sets the topic where you want to produce
+ *.     -p  Partition number
+ *.     -h  Help, will display the help for the script
+ *
+ * @author      Pau Gay <pau.gay@visualdna.com>
+ * @date        2013-01-24
+ */
+
+// check script parametrs
+$options = getopt("hb:t:p:");
+
+// require kafka-php library
+require __DIR__ . "/../../src/Kafka/Kafka.php";
+require __DIR__ . "/../help.php";
+
+if (!isset($options["b"])
+    || !isset($options["t"])) {
+    help();
+}
+
+$broker = $options["b"];
+$topic  = $options["t"];
+$partition = isset($options["p"]) ? $options["p"] : 0;
+
+list($host,$port) = explode(":", $options["b"]);
+
+// connection
+$kafka = new \Kafka\Kafka($host, $port, 6, 0.71);
+
+// request channel
+$producer = $kafka->createProducer();
+
+// add a few messages
+$producer->add(
+    new \Kafka\Message(
+        $topic,
+        $partition,
+        'test payload',
+        \Kafka\Kafka::COMPRESSION_NONE
+    )
+);
+
+if ($producer->produce())
+{
+    echo "Published to '$topic':'$partition'.\n";
+}
+
+// go home
+$producer->close();
